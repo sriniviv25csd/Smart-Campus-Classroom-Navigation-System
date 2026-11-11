@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Block Route Finder & Indoor GPS Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --navy: #102b4e;
+  --blue: #1769aa;
+  --green: #159b72;
+  --green-dark: #14532d;
+  --green-light: #bbf7d0;
+  --bg: #f3f7fb;
+  --ink: #1e293b;
+  --lab-bg: #fff3df;
+  --lab-border: #d69a48;
+  --office-bg: #f3e8ff;
+  --office-border: #a78bfa;
+  --room-border: #8aa4bf;
+  --shadow: 0 4px 18px rgba(16,43,78,0.1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; }
+
+/* Header Banner */
+header {
+  background: linear-gradient(120deg, #102b4e, #247bc1);
+  color: white;
+  text-align: center;
+  padding: 22px 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.header-badge {
+  display: inline-block;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+header h1 { margin: 0; font-size: clamp(22px, 4vw, 32px); font-weight: 800; }
+header p { margin: 8px 0 0; font-size: 14px; opacity: 0.95; }
+
+/* Top Navigation Tabs */
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: white;
+  padding: 12px 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+nav button {
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 18px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  background: #e5edf6;
+  color: var(--navy);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+nav button:hover { filter: brightness(0.96); }
+nav button.active {
+  background: var(--blue);
+  color: white;
+  box-shadow: 0 2px 8px rgba(23,105,170,0.35);
+}
+
+/* Main Content Panels */
+main {
+  max-width: 1080px;
+  margin: 22px auto;
+  padding: 0 14px 40px;
+}
+.panel {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid #e2e8f0;
+}
+h2 { margin-top: 0; color: var(--navy); font-size: 22px; font-weight: 800; }
+h3 { margin: 18px 0 10px; color: var(--navy); font-size: 17px; font-weight: 700; }
+.small { color: #64748b; font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+
+/* Search Row */
+.searchrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 2px solid #cbd5e1;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus { border-color: var(--blue); }
+button.primary {
+  background: var(--blue);
+  color: white;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+button.primary:hover { filter: brightness(0.92); }
+#message { font-weight: 700; margin-top: 10px; min-height: 22px; }
+
+/* Stats Grid */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.stat {
+  background: #eff6ff;
+  border-radius: 11px;
+  padding: 14px;
+  border: 1px solid #dbeafe;
+}
+.stat b { display: block; color: #247bc1; font-size: 12px; margin-bottom: 5px; letter-spacing: 0.5px; }
+.stat span { font-size: 15px; font-weight: 800; color: var(--navy); }
+
+/* Route Text Box */
+#routeText {
+  background: #ecfdf5;
+  border-left: 5px solid var(--green);
+  border-radius: 10px;
+  padding: 15px 18px;
+  line-height: 1.8;
+  font-size: 15px;
+  color: #065f46;
+  margin: 14px 0;
+}
+
+/* Floor Tabs */
+.floor-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.floor-tabs button {
+  flex: 1;
+  min-width: 150px;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  background: #e5edf6;
+  color: var(--navy);
+  transition: all 0.2s;
+}
+.floor-tabs button.active {
+  background: var(--green);
+  color: white;
+  box-shadow: 0 2px 8px rgba(21,155,114,0.3);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 14px 0 18px;
+  font-size: 13px;
+  font-weight: 600;
+  align-items: center;
+}
+.dot {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* GPS Tracker Telemetry HUD Box */
+.gps-hud {
+  background: linear-gradient(135deg, #091a32 0%, #102b4e 100%);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(16,43,78,0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.gps-hud-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gps-pulse-beacon {
+  width: 14px;
+  height: 14px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #10b981;
+  animation: gpsPulse 1.4s ease-out infinite;
+}
+@keyframes gpsPulse {
+  0% { transform: scale(0.9); box-shadow: 0 0 4px #10b981; }
+  50% { transform: scale(1.3); box-shadow: 0 0 14px #34d399; }
+  100% { transform: scale(0.9); box-shadow: 0 0 4px #10b981; }
+}
+.gps-status-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.gps-status-sub {
+  font-size: 12px;
+  color: #93c5fd;
+  font-weight: 500;
+}
+.gps-hud-metrics {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+.hud-metric-item {
+  text-align: right;
+}
+.hud-metric-val {
+  font-weight: 800;
+  font-size: 14px;
+  color: #34d399;
+}
+.hud-metric-lbl {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* GPS Controls Row */
+.gps-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.btn-control {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #e2e8f0;
+  color: var(--navy);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-control:hover { background: #cbd5e1; }
+.btn-control.active {
+  background: var(--green);
+  color: white;
+}
+
+/* Floorplan Box Container */
+.floorplan {
+  position: relative;
+  background: #edf3e9;
+  border: 2px solid #d4dfcf;
+  border-radius: 15px;
+  min-height: 380px;
+  padding: 22px;
+  overflow: hidden;
+}
+.floorplan:before {
+  content: "";
+  position: absolute;
+  background: #ffffff;
+  height: 32px;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 0;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.04);
+}
+.floorplan:after {
+  content: "";
+  position: absolute;
+  background: #ffffff;
+  width: 32px;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.04);
+}
+
+/* Room Grid Layout (6 Columns) */
+.roomgrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .roomgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .roomgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Room Button Card */
+.room {
+  border: 2px solid var(--room-border);
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px 6px;
+  text-align: center;
+  min-height: 72px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.room:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.room strong {
+  font-size: 16px;
+  color: var(--navy);
+  font-weight: 800;
+}
+.room span {
+  font-size: 11px;
+  color: #526477;
+  font-weight: 600;
+}
+.room.lab {
+  background: var(--lab-bg);
+  border-color: var(--lab-border);
+}
+.room.office {
+  background: var(--office-bg);
+  border-color: var(--office-border);
+}
+.room.selected {
+  background: var(--green-light) !important;
+  border: 3px solid #15803d !important;
+  color: var(--green-dark) !important;
+  transform: scale(1.03);
+  box-shadow: 0 0 14px rgba(21,128,61,0.35);
+}
+.room.selected strong {
+  color: var(--green-dark);
+}
+
+/* Live Walking GPS Tracker Marker */
+#gpsTrackerAvatar {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #102b4e;
+  border: 3px solid #10b981;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 16px rgba(16,185,129,0.8);
+  z-index: 10;
+  transition: left 0.4s ease, top 0.4s ease;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+#gpsTrackerAvatar::after {
+  content: "";
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(16,185,129,0.25);
+  animation: radarSonar 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes radarSonar {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Footprints Trail */
+.gps-footprint {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  opacity: 0.7;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Room Directory List */
+#roomList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.roomchip {
+  background: white;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.roomchip:hover {
+  border-color: var(--blue);
+  background: #eff6ff;
+  transform: translateY(-2px);
+}
+.roomchip b { font-size: 16px; color: var(--navy); display: block; margin-bottom: 2px; }
+.roomchip span { font-size: 12px; color: #0284c7; font-weight: 600; display: block; }
+.roomchip small { font-size: 11px; color: #64748b; font-weight: 500; }
+
+/* Leaflet Map */
+#kecMap {
+  width: 100%;
+  height: 480px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  margin-top: 14px;
+}
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #0f172a;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  transform: translateY(100px);
+  transition: transform 0.3s;
+  z-index: 99999;
+}
+#toast.show { transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">KONGU ENGINEERING COLLEGE (KEC)</div>
+  <h1>Admin Block Route Finder & GPS Tracker</h1>
+  <p>Find classrooms, labs and offices on the Ground, First and Second Floors with live indoor walking tracker</p>
+</header>
+
+<nav>
+  <button onclick="showSection('finder', this)">🔎 Find a Room</button>
+  <button class="active" onclick="showSection('mapSection', this)">🗺️ Floor Map</button>
+  <button onclick="showSection('directory', this)">📋 Room Directory</button>
+</nav>
+
+<main>
+
+  <!-- 1. FIND A ROOM -->
+  <section id="finder" class="panel" style="display:none">
+    <h2>Find a room in the Admin Block</h2>
+    <p class="small">Enter a room number (for example, 008, 102, 105 or 215). The route starts at the Admin Block main entrance.</p>
+    
+    <div class="searchrow">
+      <input id="roomInput" inputmode="numeric" maxlength="3" placeholder="Enter room number — e.g. 008, 105, 215" onkeydown="if(event.key==='Enter')findRoom()">
+      <button class="primary" onclick="findRoom()">Find Route →</button>
+    </div>
+    
+    <div id="message" aria-live="polite"></div>
+
+    <div class="stats">
+      <div class="stat"><b>DESTINATION</b><span id="dest">Not selected</span></div>
+      <div class="stat"><b>FLOOR</b><span id="floor">Not selected</span></div>
+      <div class="stat"><b>ROOM TYPE</b><span id="type">Not selected</span></div>
+    </div>
+
+    <h3>Walking Route from Admin Block Entrance</h3>
+    <div id="routeText">1. Enter a room number.<br>2. Follow the directions to the correct floor.<br>3. Locate your room on the floor map.</div>
+
+    <p style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="primary" onclick="speakRoute()">🔊 Read Directions</button>
+      <button class="btn-control" onclick="stopVoice()">🔇 Stop Voice</button>
+      <button class="btn-control active" onclick="showSection('mapSection')">🗺️ Open Floor Map & GPS Tracker</button>
+    </p>
+  </section>
+
+  <!-- 2. FLOOR MAP & GPS TRACKER -->
+  <section id="mapSection" class="panel">
+    <h2>Admin Block Floor Map & GPS Walking Tracker</h2>
+    <p class="small">Choose a floor level to view room directory layout. If a man walks, the GPS tracker animates his position along the corridor in real time.</p>
+
+    <div class="floor-tabs">
+      <button id="btnTabGround" onclick="showFloor('ground', this)">Ground Floor · 001–099</button>
+      <button id="btnTabFirst" class="active" onclick="showFloor('first', this)">First Floor · 100–127</button>
+      <button id="btnTabSecond" onclick="showFloor('second', this)">Second Floor · 200–220</button>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:#fff;border:1px solid #8aa4bf"></i>Classroom</span>
+      <span><i class="dot" style="background:#fff3df;border:1px solid #d69a48"></i>Laboratory</span>
+      <span><i class="dot" style="background:#f3e8ff;border:1px solid #a78bfa"></i>Office Room</span>
+      <span><i class="dot" style="background:#bbf7d0;border:2px solid #15803d"></i>Selected Room</span>
+    </div>
+
+    <div class="gps-hud">
+      <div class="gps-hud-left">
+        <div class="gps-pulse-beacon"></div>
+        <div>
+          <div class="gps-status-title" id="gpsHudTitle">GPS Indoor Tracking Ready</div>
+          <div class="gps-status-sub" id="gpsHudSub">Admin Block • Select any room to start walking route</div>
+        </div>
+      </div>
+      <div class="gps-hud-metrics">
+        <div class="hud-metric-item">
+          <div class="hud-metric-val" id="hudDistance">0 m</div>
+          <div class="hud-metric-lbl">Distance</div>
+        </div>
+        <div class="hud-metric-item">
+          <div class="hud-metric-val" id="hudSteps">0 paces</div>
+          <div class="hud-metric-lbl">Paces</div>
+        </div>
+        <div class="hud-metric-item">
+          <div class="hud-metric-val" id="hudTime">0 sec</div>
+          <div class="hud-metric-lbl">Est. Time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gps-controls">
+      <button class="btn-control active" id="btnPlayGps" onclick="startWalkingGps()">
+        ▶ Start GPS Walk
+      </button>
+      <button class="btn-control" onclick="resetWalkingGps()">
+        🔄 Reset Position
+      </button>
+      <button class="btn-control" onclick="locateDeviceGps()">
+        📡 Device GPS Sensor
+      </button>
+      <button class="btn-control" onclick="speakRoute()">
+        🔊 Voice Guide
+      </button>
+    </div>
+
+    <div id="floorTitle"><h3>First Floor · Rooms 100–127</h3></div>
+
+    <div class="floorplan" id="floorPlanBox">
+      <div id="gpsTrackerAvatar">🚶‍♂️</div>
+      <div id="footprintsContainer"></div>
+      <div class="roomgrid" id="roomGrid"></div>
+    </div>
+
+    <p class="small" style="margin-top:14px;">
+      Room positions are displayed as an interactive floor directory. Click any classroom or lab to route the walking GPS tracker directly to its door.
+    </p>
+  </section>
+
+  <!-- 3. ROOM DIRECTORY -->
+  <section id="directory" class="panel" style="display:none">
+    <h2>Room Directory</h2>
+    <p class="small">Click any room below to view its floor and walking directions.</p>
+    <div id="roomList"></div>
+  </section>
+
+  <!-- 4. KEC ADMIN BLOCK GPS MAP -->
+  <section id="campusMap" class="panel" style="display:none">
+    <h2>KEC Admin Block GPS Location</h2>
+    <p class="small">Live GPS coordinates: 11.274223° N, 77.606979° E (Kongu Engineering College Administrative Office).</p>
+    
+    <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+      <button class="btn-control active" onclick="locateOnLeaflet()">📡 Locate My Current Position</button>
+      <button class="btn-control" onclick="openGoogleMaps()">↗ Open in Google Maps</button>
+    </div>
+
+    <div id="kecMap"></div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const special = {
+  "001": "Office Room", "002": "Office Room", "003": "Office Room",
+  "004": "Office Room", "005": "Office Room", "006": "Office Room", "007": "Office Room",
+  "008": "Laboratory", "009": "Laboratory", "012": "Laboratory", "013": "Laboratory",
+  "015": "Laboratory", "020": "Laboratory", "096": "Laboratory",
+  "101": "Scholarship Section", "102": "Drawing Hall", "103": "Laboratory",
+  "104": "Laboratory", "106": "Laboratory", "127": "Laboratory",
+  "205": "Office Room", "207": "Laboratory", "213": "Faculty Room",
+  "215": "Laboratory", "216": "Laboratory", "217": "Laboratory"
+};
+
+const rooms = {};
+
+for (let n = 1; n <= 99; n++) {
+  const id = String(n).padStart(3, "0");
+  rooms[id] = { floor: "Ground Floor", floorKey: "ground", type: special[id] || "Classroom" };
+}
+for (let n = 100; n <= 127; n++) {
+  const id = String(n);
+  rooms[id] = { floor: "First Floor", floorKey: "first", type: special[id] || "Classroom" };
+}
+for (let n = 200; n <= 220; n++) {
+  const id = String(n);
+  rooms[id] = { floor: "Second Floor", floorKey: "second", type: special[id] || "Classroom" };
+}
+
+let selectedRoom = "105";
+let currentFloorKey = "first";
+let gpsAnimationTimer = null;
+
+// Track room distance info for countdown
+let totalDistance = 0;
+let totalPaces = 0;
+let totalTime = 0;
+
+const floorRanges = {
+  ground: [1, 99],
+  first: [100, 127],
+  second: [200, 220]
+};
+
+const floorNames = {
+  ground: "Ground Floor · Rooms 001–099",
+  first: "First Floor · Rooms 100–127",
+  second: "Second Floor · Rooms 200–220"
+};
+
+function showSection(id, btn) {
+  document.querySelectorAll("main > section").forEach(s => s.style.display = "none");
+  document.getElementById(id).style.display = "block";
+
+  if (btn) {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  if (id === "mapSection") {
+    renderFloor(rooms[selectedRoom]?.floorKey || currentFloorKey);
+  }
+  if (id === "campusMap") {
+    initLeafletMap();
+  }
+}
+
+function showFloor(key, btn) {
+  document.querySelectorAll(".floor-tabs button").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  currentFloorKey = key;
+  renderFloor(key);
+}
+
+function renderFloor(key) {
+  currentFloorKey = key;
+  const [start, end] = floorRanges[key];
+  document.getElementById("floorTitle").innerHTML = "<h3>" + floorNames[key] + "</h3>";
+
+  document.querySelectorAll(".floor-tabs button").forEach(b => b.classList.remove("active"));
+  if (key === "ground") document.getElementById("btnTabGround")?.classList.add("active");
+  if (key === "first") document.getElementById("btnTabFirst")?.classList.add("active");
+  if (key === "second") document.getElementById("btnTabSecond")?.classList.add("active");
+
+  const grid = document.getElementById("roomGrid");
+  grid.innerHTML = "";
+
+  for (let n = start; n <= end; n++) {
+    const id = key === "ground" ? String(n).padStart(3, "0") : String(n);
+    const info = rooms[id];
+    if (!info) continue;
+
+    const el = document.createElement("button");
+    el.id = "roomBtn_" + id;
+    
+    let typeClass = "";
+    if (info.type === "Laboratory") {
+      typeClass = " lab";
+    } else if (info.type === "Office Room" || info.type === "Scholarship Section" || info.type === "Drawing Hall" || info.type === "Faculty Room") {
+      typeClass = " office";
+    }
+    if (id === selectedRoom) {
+      typeClass += " selected";
+    }
+
+    el.className = "room" + typeClass;
+    el.innerHTML = "<strong>" + id + "</strong><span>" + info.type + "</span>";
+    el.onclick = () => selectRoomAction(id);
+
+    grid.appendChild(el);
+  }
+
+  updateGpsForRoom(selectedRoom);
+}
+
+function selectRoomAction(id) {
+  selectedRoom = id;
+  const info = rooms[id];
+  if (!info) return;
+
+  if (info.floorKey !== currentFloorKey) {
+    showFloor(info.floorKey);
+  } else {
+    document.querySelectorAll(".room").forEach(r => r.classList.remove("selected"));
+    const activeBtn = document.getElementById("roomBtn_" + id);
+    if (activeBtn) activeBtn.classList.add("selected");
+  }
+
+  document.getElementById("roomInput").value = id;
+  document.getElementById("dest").textContent = "Room " + id;
+  document.getElementById("floor").textContent = info.floor;
+  document.getElementById("type").textContent = info.type;
+  document.getElementById("message").textContent = "✓ Room found: " + id + " — " + info.type;
+
+  let steps = [
+    "1. Start at the Admin Block main entrance porch.",
+    info.floorKey === "ground" 
+      ? "2. Proceed straight into the ground floor central corridor."
+      : "2. Walk into the foyer and take the central staircase up to the " + info.floor + ".",
+    "3. Follow corridor signage to Room " + id + " (" + info.type + ")."
+  ];
+  
+  document.getElementById("routeText").innerHTML = "<b>Destination:</b> Room " + id + " — " + info.type + "<br><b>Floor:</b> " + info.floor + "<br>" + steps.join("<br>");
+
+  startWalkingGps();
+}
+
+function updateGpsForRoom(id) {
+  const info = rooms[id];
+  if (!info) return;
+
+  const roomNum = parseInt(id, 10);
+  totalDistance = Math.max(16, Math.round(20 + (roomNum % 25) * 1.5));
+  totalPaces = Math.round(totalDistance * 1.35);
+  totalTime = Math.round(totalDistance / 1.2);
+
+  document.getElementById("hudDistance").textContent = totalDistance + " m";
+  document.getElementById("hudSteps").textContent = totalPaces + " paces";
+  document.getElementById("hudTime").textContent = totalTime + " sec";
+  document.getElementById("gpsHudTitle").textContent = "GPS Tracking: Room " + id + " (" + info.type + ")";
+  document.getElementById("gpsHudSub").textContent = info.floor + " • Walking path calculated from Entrance";
+}
+
+function startWalkingGps() {
+  if (gpsAnimationTimer) clearInterval(gpsAnimationTimer);
+
+  const info = rooms[selectedRoom];
+  if (!info || info.floorKey !== currentFloorKey) {
+    if (info) showFloor(info.floorKey);
+    return;
+  }
+
+  const floorBox = document.getElementById("floorPlanBox");
+  const roomEl = document.getElementById("roomBtn_" + selectedRoom);
+  const avatar = document.getElementById("gpsTrackerAvatar");
+  const fpContainer = document.getElementById("footprintsContainer");
+
+  if (!floorBox || !roomEl || !avatar) return;
+
+  fpContainer.innerHTML = "";
+  avatar.style.display = "flex";
+
+  const boxRect = floorBox.getBoundingClientRect();
+  const roomRect = roomEl.getBoundingClientRect();
+
+  const startX = boxRect.width * 0.5;
+  const startY = boxRect.height - 25;
+  const midX = boxRect.width * 0.5;
+  const midY = boxRect.height * 0.5;
+  const targetX = roomRect.left - boxRect.left + roomRect.width * 0.5;
+  const targetY = roomRect.top - boxRect.top + roomRect.height * 0.5;
+
+  const waypoints = [
+    { x: startX, y: startY, text: "Walking out of Admin Block Entrance..." },
+    { x: midX, y: midY, text: "Passing through Central Foyer Corridor..." },
+    { x: targetX, y: midY, text: "Turning into corridor hallway..." },
+    { x: targetX, y: targetY, text: "Arriving at Room " + selectedRoom + "!" }
+  ];
+
+  let leg = 0;
+  let t = 0;
+  const speed = 0.05;
+  const totalLegs = waypoints.length - 1;
+
+  avatar.style.left = startX + "px";
+  avatar.style.top = startY + "px";
+
+  gpsAnimationTimer = setInterval(() => {
+    t += speed;
+    if (t >= 1) {
+      t = 0;
+      leg++;
+      if (leg >= totalLegs) {
+        clearInterval(gpsAnimationTimer);
+        avatar.style.left = targetX + "px";
+        avatar.style.top = targetY + "px";
+        
+        // Final HUD state at arrival
+        document.getElementById("hudDistance").textContent = "0 m";
+        document.getElementById("hudSteps").textContent = "0 paces";
+        document.getElementById("hudTime").textContent = "0 sec";
+
+        document.getElementById("gpsHudTitle").textContent = "✔ GPS: Arrived at Room " + selectedRoom;
+        document.getElementById("gpsHudSub").textContent = "You are right outside Room " + selectedRoom + " (" + info.type + ")";
+        showToast("🎯 You have arrived at Room " + selectedRoom + "!");
+        return;
+      }
+    }
+
+    const p1 = waypoints[leg];
+    const p2 = waypoints[leg + 1];
+    const curX = p1.x + (p2.x - p1.x) * t;
+    const curY = p1.y + (p2.y - p1.y) * t;
+
+    avatar.style.left = curX + "px";
+    avatar.style.top = curY + "px";
+    document.getElementById("gpsHudTitle").textContent = "🚶 " + p2.text;
+
+    // Calculate real-time distance countdown
+    const overallProgress = (leg + t) / totalLegs;
+    const remainingDist = Math.max(0, Math.round(totalDistance * (1 - overallProgress)));
+    const remainingPaces = Math.max(0, Math.round(totalPaces * (1 - overallProgress)));
+    const remainingTime = Math.max(0, Math.round(totalTime * (1 - overallProgress)));
+
+    document.getElementById("hudDistance").textContent = remainingDist + " m";
+    document.getElementById("hudSteps").textContent = remainingPaces + " paces";
+    document.getElementById("hudTime").textContent = remainingTime + " sec";
+
+    if (Math.random() > 0.6) {
+      const fp = document.createElement("div");
+      fp.className = "gps-footprint";
+      fp.style.left = curX + "px";
+      fp.style.top = curY + "px";
+      fpContainer.appendChild(fp);
+    }
+  }, 40);
+}
+
+function resetWalkingGps() {
+  if (gpsAnimationTimer) clearInterval(gpsAnimationTimer);
+  const avatar = document.getElementById("gpsTrackerAvatar");
+  const fpContainer = document.getElementById("footprintsContainer");
+  if (avatar) avatar.style.display = "none";
+  if (fpContainer) fpContainer.innerHTML = "";
+  updateGpsForRoom(selectedRoom);
+}
+
+function locateDeviceGps() {
+  if (!navigator.geolocation) {
+    showToast("GPS Geolocation not supported on this device.");
+    return;
+  }
+  showToast("Connecting to live GPS sensor...");
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      showToast("Live GPS: " + lat + ", " + lng);
+      document.getElementById("gpsHudTitle").textContent = "📡 Device GPS Sensor Active";
+      document.getElementById("gpsHudSub").textContent = "Latitude: " + lat + " | Longitude: " + lng;
+      startWalkingGps();
+    },
+    () => {
+      showToast("GPS Permission denied or unavailable. Simulating indoor walk.");
+      startWalkingGps();
+    },
+    { enableHighAccuracy: true, timeout: 6000 }
+  );
+}
+
+function findRoom() {
+  let raw = document.getElementById("roomInput").value.trim();
+  if (!raw) {
+    document.getElementById("message").textContent = "Please enter a room number.";
+    return;
+  }
+  let id = raw;
+  if (/^\d+$/.test(raw) && Number(raw) >= 1 && Number(raw) <= 99) {
+    id = String(Number(raw)).padStart(3, "0");
+  }
+
+  const info = rooms[id];
+  if (!info) {
+    document.getElementById("message").textContent = "Room not in Admin Block directory (Use 001–099, 100–127 or 200–220).";
+    return;
+  }
+
+  selectRoomAction(id);
+  showSection("mapSection");
+}
+
+function speakRoute() {
+  if (!selectedRoom) return;
+  const info = rooms[selectedRoom];
+  const text = "Starting at the Admin Block main entrance. Go to the " + info.floor + ". Follow the corridor to find Room " + selectedRoom + ", which is " + info.type + ".";
+  if (!("speechSynthesis" in window)) {
+    showToast("Voice directions not supported in this browser.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-IN";
+  utterance.rate = 0.9;
+  window.speechSynthesis.speak(utterance);
+  showToast("Reading walking directions aloud...");
+}
+
+function stopVoice() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
+function buildDirectory() {
+  const list = document.getElementById("roomList");
+  list.innerHTML = "";
+  Object.keys(rooms).forEach(id => {
+    const b = document.createElement("button");
+    b.className = "roomchip";
+    b.innerHTML = "<b>" + id + "</b><span>" + rooms[id].type + "</span><small>" + rooms[id].floor + "</small>";
+    b.onclick = () => {
+      selectRoomAction(id);
+      showSection("mapSection");
+    };
+    list.appendChild(b);
+  });
+}
+
+let leafletMapInstance = null;
+const KEC_LAT = 11.274223;
+const KEC_LNG = 77.606979;
+
+function initLeafletMap() {
+  if (leafletMapInstance) {
+    setTimeout(() => leafletMapInstance.invalidateSize(), 200);
+    return;
+  }
+  leafletMapInstance = L.map("kecMap").setView([KEC_LAT, KEC_LNG], 18);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(leafletMapInstance);
+
+  L.marker([KEC_LAT, KEC_LNG])
+    .addTo(leafletMapInstance)
+    .bindPopup("<b>KEC Admin Block (Administrative Office)</b><br>Perundurai, Erode")
+    .openPopup();
+
+  setTimeout(() => leafletMapInstance.invalidateSize(), 300);
+}
+
+function locateOnLeaflet() {
+  if (!leafletMapInstance) return;
+  leafletMapInstance.locate({ setView: true, maxZoom: 18 });
+  leafletMapInstance.on("locationfound", e => {
+    L.circleMarker(e.latlng, { radius: 8, color: "#10b981", fillColor: "#34d399", fillOpacity: 0.9 })
+      .addTo(leafletMapInstance).bindPopup("Your GPS Location").openPopup();
+  });
+  leafletMapInstance.on("locationerror", () => {
+    showToast("Unable to acquire GPS location.");
+  });
+}
+
+function openGoogleMaps() {
+  window.open("https://www.google.com/maps/dir/?api=1&destination=" + KEC_LAT + "," + KEC_LNG, "_blank");
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  buildDirectory();
+  showFloor("first");
+  selectRoomAction("105");
+});
+</script>
+</body>
+</html>
